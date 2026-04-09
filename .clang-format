@@ -1,0 +1,24 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+
+ColumnLimit: 110
+IndentWidth: 2
+AccessModifierOffset: -4
+NamespaceIndentation: None
+
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<.*'
+    Priority: 1
+  - Regex: '.*'
+    Priority: 2
+
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+
+PointerAlignment: Left
+
+MaxEmptyLinesToKeep: 1
+FixNamespaceComments: true
