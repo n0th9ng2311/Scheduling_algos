@@ -214,48 +214,47 @@ class AbstractScheduler {
 
   virtual void sort(TaskQueue& tq) = 0;
 
+  // returns true if the process is done false if preempted
+  virtual bool runProcess(PID& task, TaskQueue& tq, double& currentTime) = 0;
+
   [[nodiscard]] virtual std::string name() const = 0;
+};
+
+// Aggregate metrics from one scheduler run, used by the simulation test to
+struct SimResult {
+  std::string scheduler_name;
+  double avg_turnaround{};
+  double avg_waiting{};
+  double avg_completion{};
+  int process_count{};
 };
 
 // this will simulate our worker which will pick tasks and then work on them
 class Worker {
   public:
-  explicit Worker(TaskQueue& queue, AbstractScheduler& scheduler) : m_queue{queue}, m_scheduler{scheduler} {}
+  Worker(TaskQueue& queue, AbstractScheduler& scheduler) : m_queue{queue}, m_scheduler{scheduler} {}
 
-  // Returns true when a task was actually processed
-  bool work(float& currentTime) {
+  bool work(double& currentTime) {
     auto maybeTask = m_queue.popTask();
     if (!maybeTask) return false;
 
     PID task = std::move(*maybeTask);
+    bool done = m_scheduler.runProcess(task, m_queue, currentTime);
 
-    if (currentTime < task.getArrivalTime()) {
-      currentTime = task.getArrivalTime();
-    }
-
-    constexpr float TIME_SLICE = 10.0f;
-    task.decRemainingTime(TIME_SLICE);
-    currentTime += TIME_SLICE;
-
-    if (task.getRemainingTime() <= 0.0f) {
-      task.calculateMetrics(currentTime);
+    if (done) {
       std::cout << "Completed PID " << task.getPID() << " ('" << task.p_name << "')"
                 << "  CT=" << std::fixed << std::setprecision(2) << task.getCompletionTime()
                 << "  TAT=" << task.getTurnaroundTime() << "  WT=" << task.getWaitingTime() << "\n";
-      m_completed.push_back(task);
-    } else {
-      // Not done yet — put it back
-      m_queue.addTask(std::move(task));
-      m_scheduler.sort(m_queue);
+      m_completed.push_back(std::move(task));
     }
-    return true;
+    return done;
   }
 
   void printSummary() const {
     if (m_completed.empty()) return;
 
     float totalTAT = 0, totalWT = 0;
-    std::cout << "\n--- Final Summary ---\n";
+    std::cout << "\n--- Final Summary (" << m_scheduler.name() << ") ---\n";
     std::cout << std::left << std::setw(6) << "PID" << std::setw(6) << "Name" << std::setw(10) << "Arrival"
               << std::setw(10) << "Burst" << std::setw(12) << "Completion" << std::setw(12) << "Turnaround"
               << std::setw(10) << "Waiting" << "\n";
@@ -270,9 +269,31 @@ class Worker {
                 << std::setw(10) << p.getWaitingTime() << "\n";
     }
 
-    float n = static_cast<float>(m_completed.size());
+    auto n = static_cast<float>(m_completed.size());
     std::cout << "\nAvg Turnaround Time : " << totalTAT / n << "\n";
     std::cout << "Avg Waiting Time    : " << totalWT / n << "\n";
+  }
+
+  SimResult getSimResult(const std::string& sname) const {
+    SimResult r;
+    r.scheduler_name = sname;
+    r.process_count = static_cast<int>(m_completed.size());
+    if (m_completed.empty()) return r;
+
+    double totalTAT = 0;
+    double totalWT = 0;
+    double totalCT = 0;
+
+    for (const auto& p : m_completed) {
+      totalTAT += p.getTurnaroundTime();
+      totalWT += p.getWaitingTime();
+      totalCT += p.getCompletionTime();
+    }
+    auto n = static_cast<float>(r.process_count);
+    r.avg_turnaround = totalTAT / n;
+    r.avg_waiting = totalWT / n;
+    r.avg_completion = totalCT / n;
+    return r;
   }
 
   private:

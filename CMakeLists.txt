@@ -10,4 +10,5 @@ add_executable(wor main.cpp
         Priority.h
         SRJF.h
         RR.h
-        choice.h)
+        choice.h
+        Test.h)

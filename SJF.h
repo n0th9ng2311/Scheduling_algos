@@ -2,15 +2,25 @@
 
 #include "CommonUtils.h"
 
-// Tie-breaking: lower PID wins
+
 class SJFScheduler : public AbstractScheduler {
-  public:
-  void sort(TaskQueue& task_queue) override {
-    task_queue.sortWith([](const PID& a, const PID& b) {
-      // Simulate scheduling overhead
-      std::this_thread::sleep_for(std::chrono::milliseconds(15));
+public:
+  void sort(TaskQueue& tq) override {
+    tq.sortWith([](const PID& a, const PID& b) {
       return PID_Manager::sortRemainingTime(a, b);
     });
+  }
+
+  bool runProcess(PID& task, TaskQueue& , double& currentTime) override {
+    // Advance clock if CPU was idle before this process arrived
+    if (currentTime < task.getArrivalTime())
+      currentTime = task.getArrivalTime();
+
+
+    currentTime += task.getRemainingTime();
+    task.decRemainingTime(task.getRemainingTime());
+    task.calculateMetrics(static_cast<float>(currentTime));
+    return true;  //non-preemptive never returns false
   }
 
   [[nodiscard]] std::string name() const override { return "Shortest Job First (SJF)"; }

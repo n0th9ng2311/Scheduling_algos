@@ -17,7 +17,7 @@ inline void schedulerC(TaskQueue& Tqueue, AbstractScheduler& scheduler) {
   std::cout << "\n=== Processing ===\n";
 
   Worker worker{Tqueue, scheduler};
-  float currentTime = 0.0f;
+  double currentTime = 0.0;
 
   while (!Tqueue.empty()) worker.work(currentTime);
 
@@ -45,7 +45,7 @@ inline void start(int choice) {
   std::thread t_rt(queuesManager::moveTaskRT, std::ref(Rqueue), std::ref(Tqueue), std::ref(stopPipeline));
 
   std::cout << "\nWaiting for pipeline to fill TaskQueue...\n";
-  while (Tqueue.size() < 10) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  while (Tqueue.size() < 30) std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
   stopPipeline.store(true);
   t_wr.join();
@@ -68,7 +68,7 @@ inline void start(int choice) {
       break;
     }
     case 4: {
-      SRJFscheduler scheduler{}; //need to implement this
+      SRJFScheduler scheduler{}; //need to implement this
       schedulerC(Tqueue, scheduler);
       break;
     }
